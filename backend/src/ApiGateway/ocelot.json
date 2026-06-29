@@ -1,0 +1,43 @@
+{
+  "Routes": [
+    {
+      "DownstreamPathTemplate": "/api/article",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "articleservice", "Port": 5001 }
+      ],
+      "UpstreamPathTemplate": "/api/articles",
+      "UpstreamHttpMethod": [ "POST" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/article/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "articleservice", "Port": 5001 }
+      ],
+      "UpstreamPathTemplate": "/api/articles/{id}",
+      "UpstreamHttpMethod": [ "PUT", "DELETE" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/query",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "queryservice", "Port": 5003 }
+      ],
+      "UpstreamPathTemplate": "/api/articles",
+      "UpstreamHttpMethod": [ "GET" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/query/{id}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "queryservice", "Port": 5003 }
+      ],
+      "UpstreamPathTemplate": "/api/articles/{id}",
+      "UpstreamHttpMethod": [ "GET" ]
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "http://localhost:5000"
+  }
+}

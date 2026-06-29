@@ -1,0 +1,122 @@
+# version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - realworld-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_PROCESS_ROLES: broker, controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://kafka:9092,CONTROLLER://kafka:9093
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "9092:9092"
+    networks:
+      - realworld-network
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=YourStrong!Passw0rd
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    networks:
+      - realworld-network
+
+  articleservice:
+    build:
+      context: .
+      dockerfile: src/Services/ArticleService/Dockerfile
+    container_name: articleservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5001
+      - ConnectionStrings__ArticleDb=Server=sqlserver;Database=ArticleDb;User=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=true
+      - Kafka__BootstrapServers=kafka:9092
+      - Kafka__ClientId=article-service
+    ports:
+      - "5001:5001"
+    depends_on:
+      - sqlserver
+      - kafka
+    networks:
+      - realworld-network
+
+  queryservice:
+    build:
+      context: .
+      dockerfile: src/Services/QueryService/Dockerfile
+    container_name: queryservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5003
+      - ConnectionStrings__ReadDb=Server=sqlserver;Database=ReadDb;User=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=true
+      - Kafka__BootstrapServers=kafka:9092
+      - Kafka__ClientId=query-service
+    ports:
+      - "5003:5003"
+    depends_on:
+      - sqlserver
+      - kafka
+    networks:
+      - realworld-network
+
+  notificationservice:
+    build:
+      context: .
+      dockerfile: src/Services/NotificationService/Dockerfile
+    container_name: notificationservice
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5005
+      - Kafka__BootstrapServers=kafka:9092
+      - Kafka__ClientId=notification-service
+    depends_on:
+      - kafka
+    networks:
+      - realworld-network
+
+  apigateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/Dockerfile
+    container_name: apigateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - articleservice
+      - queryservice
+      - notificationservice
+    networks:
+      - realworld-network
+
+networks:
+  realworld-network:
+    driver: bridge
